@@ -257,11 +257,45 @@ export default function QuizzesPage() {
       const points = Math.round((correct / total) * 100);
       const timeSpent = Math.floor((Date.now() - quizStartTime) / 1000);
 
+      console.log('Submitting quiz:', { quizId: selectedQuiz.id, score: points, timeSpent, answerCount: Object.keys(answers).length });
+
       await quizzesAPI.submitAnswer(selectedQuiz.id, points, timeSpent, answers);
+      
+      // Update local state immediately after successful submission
+      setHasAttempted(true);
+      setUserScore(points);
+      setUserAnswers(answers);
+      setAttemptTimeSpent(timeSpent);
+      setAttemptCompletedAt(new Date().toISOString());
+      
       setShowLeaderboard(true);
-    } catch (error) {
-      console.log('Failed to submit quiz result:', error);
-      setShowLeaderboard(true);
+    } catch (error: any) {
+      console.error('Failed to submit quiz result:', error?.response?.data?.error || error.message);
+      // If already attempted error, refresh the attempt data and show review
+      if (error?.response?.status === 400 && error?.response?.data?.error?.includes('already attempted')) {
+        alert('You have already attempted this quiz once. Please review your previous attempt.');
+        // Refresh the attempt data
+        const token = localStorage.getItem('authToken');
+        if (token && selectedQuiz) {
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/quizzes/${selectedQuiz.id}/attempt`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const attempt = await response.json();
+            setHasAttempted(true);
+            setUserScore(attempt.points);
+            setUserAnswers(attempt.answers || {});
+            setAttemptTimeSpent(attempt.timeSpent || 0);
+            setAttemptCompletedAt(attempt.completedAt || '');
+            setQuizActive(false);
+            setShowResults(false);
+            // Auto-show review screen
+            return;
+          }
+        }
+      } else {
+        alert('Failed to submit quiz. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

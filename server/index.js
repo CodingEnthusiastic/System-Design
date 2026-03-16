@@ -658,12 +658,21 @@ app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
     const leaderboardEntry = {
       quizId,
       userId: userId.toString(),
-      username: req.user.username || req.user.email,
+      username: req.user.username || 'Anonymous',
+      email: req.user.email,
       points: score,
       timeSpent,
       answers: answers || {}, // Store user's answers for review
       completedAt: new Date(),
     };
+    
+    console.log('Leaderboard entry being stored:', {
+      quizId,
+      userId: userId.toString(),
+      username: leaderboardEntry.username,
+      email: leaderboardEntry.email,
+      points: score
+    });
 
     console.log('Storing quiz attempt with answers:', {
       quizId,

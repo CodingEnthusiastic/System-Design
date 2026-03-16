@@ -107,8 +107,11 @@ export default function PreQuizScreen({ quiz, onStart, onBack, hasAttempted = fa
           ) : (
             <button
               onClick={onStart}
-              className="neu-btn-blue px-8 py-4 text-lg font-bold cursor-pointer border-4 hover:scale-105 transition-transform"
-              style={{ boxShadow: '4px 4px 0px #1e3a5f' }}
+              disabled={hasAttempted}
+              className={`neu-btn-blue px-8 py-4 text-lg font-bold border-4 transition-transform ${
+                hasAttempted ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'
+              }`}
+              style={{ boxShadow: hasAttempted ? 'none' : '4px 4px 0px #1e3a5f' }}
             >
               Start Quiz →
             </button>

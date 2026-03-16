@@ -27,23 +27,40 @@ export default function QuizLeaderboard({ quizId, quizTitle }: QuizLeaderboardPr
     const fetchLeaderboard = async () => {
       try {
         setLoading(true);
+        setError('');
         const response = await quizzesAPI.getLeaderboard(quizId);
         const data = response.data;
-        // Add ranks
-        const withRanks = data.map((entry: LeaderboardEntry, index: number) => ({
+        
+        console.log('Leaderboard data received:', data);
+        
+        if (!data || data.length === 0) {
+          setLeaderboard([]);
+          return;
+        }
+        
+        // Add ranks - sort by points DESC, then by timeSpent ASC
+        const sorted = [...data].sort((a: LeaderboardEntry, b: LeaderboardEntry) => {
+          if (b.points !== a.points) return b.points - a.points;
+          return a.timeSpent - b.timeSpent;
+        });
+        
+        const withRanks = sorted.map((entry: LeaderboardEntry, index: number) => ({
           ...entry,
+          username: entry.username || entry.email || 'Anonymous',
           rank: index + 1,
         }));
         setLeaderboard(withRanks);
-      } catch (err) {
-        console.log('Could not fetch leaderboard');
+      } catch (err: any) {
+        console.error('Leaderboard fetch error:', err);
         setError('Could not load leaderboard');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLeaderboard();
+    if (quizId) {
+      fetchLeaderboard();
+    }
   }, [quizId]);
 
   const getMedalIcon = (rank: number) => {
@@ -126,9 +143,9 @@ export default function QuizLeaderboard({ quizId, quizTitle }: QuizLeaderboardPr
 
               {/* User Info */}
               <div className="flex-grow min-w-0">
-                <p className="font-bold truncate">{entry.username}</p>
+                <p className="font-bold truncate">{entry.username || entry.email || 'Anonymous'}</p>
                 <p className="text-xs text-muted-foreground font-mono">
-                  {new Date(entry.completedAt).toLocaleDateString()}
+                  {entry.completedAt ? new Date(entry.completedAt).toLocaleDateString() : 'N/A'}
                 </p>
               </div>
 
