@@ -1,0 +1,261 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  
+  /* Neo-Brutalist Dark Blue Theme */
+  --background: #0a0e1a;
+  --foreground: #e2e8f0;
+  --card: #111827;
+  --card-foreground: #e2e8f0;
+  --popover: #111827;
+  --popover-foreground: #e2e8f0;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #2563eb;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #1e3a5f;
+  --input: #1e293b;
+  --input-background: #0f172a;
+  --switch-background: #1e293b;
+  --ring: #3b82f6;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Blue accent palette */
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-indigo: #6366f1;
+  --accent-sky: #0ea5e9;
+  --accent-yellow: #facc15;
+  --accent-lime: #a3e635;
+
+  /* Neo-brutalist specific */
+  --neu-shadow: 4px 4px 0px #000000;
+  --neu-shadow-sm: 2px 2px 0px #000000;
+  --neu-shadow-lg: 6px 6px 0px #000000;
+  --neu-shadow-blue: 4px 4px 0px #1e40af;
+  --neu-border: 3px solid #e2e8f0;
+  --neu-border-blue: 3px solid #3b82f6;
+
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-indigo: var(--accent-indigo);
+  --color-accent-sky: var(--accent-sky);
+  --color-accent-yellow: var(--accent-yellow);
+  --color-accent-lime: var(--accent-lime);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground overflow-x-hidden;
+    font-family: 'Space Grotesk', sans-serif;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  /* Neo-Brutalist utility classes */
+  .neu-card {
+    background: var(--card);
+    border: 3px solid var(--foreground);
+    box-shadow: var(--neu-shadow);
+    transition: all 0.15s ease;
+  }
+
+  .neu-card:hover {
+    box-shadow: 6px 6px 0px #000000;
+    transform: translate(-2px, -2px);
+  }
+
+  .neu-card:active {
+    box-shadow: 1px 1px 0px #000000;
+    transform: translate(1px, 1px);
+  }
+
+  .neu-card-blue {
+    background: var(--card);
+    border: 3px solid var(--primary);
+    box-shadow: var(--neu-shadow-blue);
+    transition: all 0.15s ease;
+  }
+
+  .neu-card-blue:hover {
+    box-shadow: 6px 6px 0px #1e40af;
+    transform: translate(-2px, -2px);
+  }
+
+  .neu-btn {
+    border: 3px solid var(--foreground);
+    box-shadow: var(--neu-shadow);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.1s ease;
+  }
+
+  .neu-btn:hover {
+    box-shadow: 6px 6px 0px #000000;
+    transform: translate(-2px, -2px);
+  }
+
+  .neu-btn:active {
+    box-shadow: 0px 0px 0px #000000;
+    transform: translate(4px, 4px);
+  }
+
+  .neu-btn-blue {
+    background: var(--primary);
+    color: white;
+    border: 3px solid #1e40af;
+    box-shadow: 4px 4px 0px #1e3a5f;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.1s ease;
+  }
+
+  .neu-btn-blue:hover {
+    box-shadow: 6px 6px 0px #1e3a5f;
+    transform: translate(-2px, -2px);
+    background: #2563eb;
+  }
+
+  .neu-btn-blue:active {
+    box-shadow: 0px 0px 0px #1e3a5f;
+    transform: translate(4px, 4px);
+  }
+
+  .neu-input {
+    background: var(--input-background);
+    border: 3px solid var(--foreground);
+    box-shadow: var(--neu-shadow-sm);
+    font-family: 'Space Mono', monospace;
+    transition: all 0.15s ease;
+  }
+
+  .neu-input:focus {
+    border-color: var(--primary);
+    box-shadow: var(--neu-shadow-blue);
+    outline: none;
+  }
+
+  .font-mono {
+    font-family: 'Space Mono', monospace;
+  }
+
+  .font-grotesk {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  /* Striped background pattern */
+  .neu-stripes {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 10px,
+      rgba(59, 130, 246, 0.05) 10px,
+      rgba(59, 130, 246, 0.05) 20px
+    );
+  }
+
+  .neu-dots {
+    background-image: radial-gradient(circle, rgba(59, 130, 246, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Badge styles */
+  .neu-badge {
+    border: 2px solid var(--foreground);
+    box-shadow: 2px 2px 0px #000000;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .neu-badge-blue {
+    background: var(--primary);
+    color: white;
+    border: 2px solid #1e40af;
+    box-shadow: 2px 2px 0px #1e3a5f;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border: 2px solid var(--background);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
+  }
+}
+
+html {
+  font-size: var(--font-size);
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
