@@ -1,4 +1,4 @@
-import { ArrowLeft, Maximize2, Trophy } from 'lucide-react';
+import { ArrowLeft, Trophy, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import QuizLeaderboard from '@/components/QuizLeaderboard';
 import { Quiz } from '@/data/mockData';
@@ -7,9 +7,11 @@ interface PreQuizScreenProps {
   quiz: Quiz;
   onStart: () => void;
   onBack: () => void;
+  hasAttempted?: boolean;
+  userScore?: number;
 }
 
-export default function PreQuizScreen({ quiz, onStart, onBack }: PreQuizScreenProps) {
+export default function PreQuizScreen({ quiz, onStart, onBack, hasAttempted = false, userScore = 0 }: PreQuizScreenProps) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-6">
       <button
@@ -49,11 +51,19 @@ export default function PreQuizScreen({ quiz, onStart, onBack }: PreQuizScreenPr
               <ul className="space-y-2 text-sm">
                 <li className="flex gap-2">
                   <span className="font-bold text-accent-yellow">✓</span>
-                  <span>You must remain in fullscreen mode during the entire quiz</span>
+                  <span>This quiz can only be attempted ONCE. Choose carefully!</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold text-accent-yellow">✓</span>
                   <span>Tab switching or window changes will immediately terminate the quiz</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-accent-yellow">✓</span>
+                  <span>Attempting to open developer tools/inspect will disqualify you (no warnings)</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-accent-yellow">✓</span>
+                  <span>Copy/paste operations are disabled during the quiz</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="font-bold text-accent-yellow">✓</span>
@@ -86,13 +96,23 @@ export default function PreQuizScreen({ quiz, onStart, onBack }: PreQuizScreenPr
 
         {/* Start Button */}
         <div className="flex gap-4 justify-center pt-6">
-          <button
-            onClick={onStart}
-            className="neu-btn-blue px-8 py-4 text-lg font-bold cursor-pointer border-4 hover:scale-105 transition-transform"
-            style={{ boxShadow: '4px 4px 0px #1e3a5f' }}
-          >
-            <Maximize2 className="w-5 h-5 inline mr-2" /> Start Quiz in Fullscreen
-          </button>
+          {hasAttempted ? (
+            <div className="neu-card p-6 bg-accent-yellow/5 border-2 border-accent-yellow space-y-3 text-center w-full">
+              <AlertCircle className="w-8 h-8 mx-auto text-accent-yellow" />
+              <p className="text-lg font-bold text-foreground">Quiz Already Attempted</p>
+              <p className="text-sm text-muted-foreground font-mono">You have already completed this quiz once.</p>
+              <p className="text-lg font-bold text-accent-yellow">{userScore}%</p>
+              <p className="text-xs text-muted-foreground">Scroll down to review your answers and see the correct solutions!</p>
+            </div>
+          ) : (
+            <button
+              onClick={onStart}
+              className="neu-btn-blue px-8 py-4 text-lg font-bold cursor-pointer border-4 hover:scale-105 transition-transform"
+              style={{ boxShadow: '4px 4px 0px #1e3a5f' }}
+            >
+              Start Quiz →
+            </button>
+          )}
         </div>
 
         {/* Disclaimer */}

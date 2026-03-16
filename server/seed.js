@@ -129,16 +129,19 @@ const quizzes = [
     topic: 'Fundamentals',
     questions: [
       {
+        id: 'q-1-1',
         question: 'Which of the following is NOT a component of the CAP theorem?',
         options: ['Consistency', 'Availability', 'Partition Tolerance', 'Durability'],
         correctAnswer: 3,
       },
       {
+        id: 'q-1-2',
         question: 'What is the primary purpose of a load balancer?',
         options: ['Store data', 'Distribute traffic across servers', 'Encrypt data', 'Compress files'],
         correctAnswer: 1,
       },
       {
+        id: 'q-1-3',
         question: 'Which scaling approach adds more powerful servers?',
         options: ['Horizontal scaling', 'Vertical scaling', 'Circular scaling', 'Linear scaling'],
         correctAnswer: 1,
@@ -150,11 +153,13 @@ const quizzes = [
     topic: 'Intermediate',
     questions: [
       {
+        id: 'q-2-1',
         question: 'What is a disadvantage of horizontal scaling?',
         options: ['Limited resources', 'Increased complexity', 'Higher cost', 'Slower response times'],
         correctAnswer: 1,
       },
       {
+        id: 'q-2-2',
         question: 'Which database is best for real-time analytics?',
         options: ['MySQL', 'MongoDB', 'Cassandra', 'All are equal'],
         correctAnswer: 2,
@@ -166,11 +171,13 @@ const quizzes = [
     topic: 'Advanced',
     questions: [
       {
+        id: 'q-3-1',
         question: 'What does LRU stand for?',
         options: ['Load Response Unit', 'Least Recently Used', 'Latest Read Update', 'Load Reusable Utility'],
         correctAnswer: 1,
       },
       {
+        id: 'q-3-2',
         question: 'Which cache strategy removes least recently accessed items?',
         options: ['FIFO', 'LRU', 'LFU', 'LIFO'],
         correctAnswer: 1,

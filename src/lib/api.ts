@@ -55,12 +55,14 @@ export const quizzesAPI = {
   create: (data: any) => api.post('/api/quizzes', data),
   update: (id: string, data: any) => api.put(`/api/quizzes/${id}`, data),
   delete: (id: string) => api.delete(`/api/quizzes/${id}`),
-  submitAnswer: (quizId: string, score: number, timeSpent: number) =>
-    api.post(`/api/quizzes/${quizId}/submit`, { score, timeSpent }),
+  submitAnswer: (quizId: string, score: number, timeSpent: number, answers: Record<string, number>) =>
+    api.post(`/api/quizzes/${quizId}/submit`, { score, timeSpent, answers }),
   getLeaderboard: (quizId: string) =>
     api.get(`/api/quizzes/${quizId}/leaderboard`),
   checkAttempt: (quizId: string) =>
     api.get(`/api/quizzes/${quizId}/check-attempt`),
+  getAttempt: (quizId: string) =>
+    api.get(`/api/quizzes/${quizId}/attempt`),
 };
 
 // Users APIs

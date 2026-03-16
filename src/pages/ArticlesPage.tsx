@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { articles as mockArticles, Article } from '@/data/mockData';
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, User, Tag, Search } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, User, Tag, Search, Grid3x3, List } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getImageUrl } from '@/lib/utils';
 
@@ -10,8 +10,8 @@ function ImageCarousel({ images }: { images: string[] }) {
   if (!images.length) return null;
 
   return (
-    <div className="relative aspect-[2/1] bg-black border-3 border-foreground overflow-hidden" style={{ boxShadow: '4px 4px 0px #000' }}>
-      <img src={getImageUrl(images[current])} alt="" className="w-full h-full object-cover" />
+    <div className="relative aspect-[2/1] bg-black border-3 border-foreground overflow-hidden flex items-center justify-center" style={{ boxShadow: '4px 4px 0px #000' }}>
+      <img src={getImageUrl(images[current])} alt="" className="w-full h-full object-contain" />
       {images.length > 1 && (
         <>
           <button
@@ -52,6 +52,7 @@ export default function ArticlesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Handle URL-based article selection
   useEffect(() => {
@@ -160,14 +161,42 @@ export default function ArticlesPage() {
 
       {/* Search and Filter */}
       <div className="space-y-4">
-        <div className="neu-input w-full px-4 py-3 text-foreground border-2 border-foreground flex items-center gap-2" style={{ boxShadow: '2px 2px 0px #000' }}>
-          <input
-            type="text"
-            placeholder="Search articles by title, author..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 bg-transparent outline-none font-mono text-sm"
-          />
+        <div className="flex gap-3 items-end">
+          <div className="neu-input flex-1 px-4 py-3 text-foreground border-2 border-foreground flex items-center gap-2" style={{ boxShadow: '2px 2px 0px #000' }}>
+            <input
+              type="text"
+              placeholder="Search articles by title, author..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent outline-none font-mono text-sm"
+            />
+          </div>
+          {/* View Toggle */}
+          <div className="flex gap-2 border-2 border-foreground bg-secondary" style={{ boxShadow: '2px 2px 0px #000' }}>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-3 transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-primary/20'
+              }`}
+              title="Grid View"
+            >
+              <Grid3x3 className="w-5 h-5" />
+            </button>
+            <div className="w-px bg-foreground" />
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-3 transition-all ${
+                viewMode === 'list'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-primary/20'
+              }`}
+              title="List View"
+            >
+              <List className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Tag Filter */}
@@ -208,51 +237,83 @@ export default function ArticlesPage() {
         </p>
       </div>
 
-      {/* Articles Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {articles
-          .filter(a => 
-            (searchQuery === '' || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.author.toLowerCase().includes(searchQuery.toLowerCase())) &&
-            (selectedTag === null || a.tags.includes(selectedTag))
-          )
-          .map((article, i) => (
-          <motion.div
-            key={article.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: i * 0.1 }}
-          >
-            <button
-              onClick={() => navigate(`/articles/${article.id}`)}
-              className="w-full text-left group cursor-pointer h-full"
+      {/* Articles Grid or List View */}
+      {viewMode === 'grid' ? (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {articles
+            .filter(a => 
+              (searchQuery === '' || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.author.toLowerCase().includes(searchQuery.toLowerCase())) &&
+              (selectedTag === null || a.tags.includes(selectedTag))
+            )
+            .map((article, i) => (
+            <motion.div
+              key={article.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: i * 0.1 }}
             >
-              <div className="neu-card overflow-hidden h-full flex flex-col">
-                {article.images[0] && (
-                  <div className="aspect-video overflow-hidden shrink-0">
-                    <img
-                      src={getImageUrl(article.images[0])}
-                      alt={article.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+              <button
+                onClick={() => navigate(`/articles/${article.id}`)}
+                className="w-full text-left group cursor-pointer h-full"
+              >
+                <div className="neu-card overflow-hidden h-full flex flex-col">
+                  {article.images[0] && (
+                    <div className="aspect-video overflow-hidden shrink-0">
+                      <img
+                        src={getImageUrl(article.images[0])}
+                        alt={article.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  )}
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex flex-wrap gap-2 mb-3 h-6">
+                      {article.tags.slice(0, 2).map((tag) => (
+                        <span key={tag} className="neu-badge-blue px-2 py-0.5 text-[10px]">{tag}</span>
+                      ))}
+                    </div>
+                    <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-2">{article.title}</h3>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono mt-auto">
+                      <span className="flex items-center gap-1"><User className="w-3 h-3" /> {article.author}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {article.createdAt}</span>
+                    </div>
                   </div>
-                )}
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="flex flex-wrap gap-2 mb-3 h-6">
-                    {article.tags.slice(0, 2).map((tag) => (
-                      <span key={tag} className="neu-badge-blue px-2 py-0.5 text-[10px]">{tag}</span>
-                    ))}
-                  </div>
-                  <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-2">{article.title}</h3>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono mt-auto">
+                </div>
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="border-2 border-foreground neu-card overflow-hidden" style={{ boxShadow: '2px 2px 0px #000' }}>
+          <div className="max-h-96 overflow-y-auto">
+            {articles
+              .filter(a => 
+                (searchQuery === '' || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.author.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                (selectedTag === null || a.tags.includes(selectedTag))
+              )
+              .map((article) => (
+              <button
+                key={article.id}
+                onClick={() => navigate(`/articles/${article.id}`)}
+                className="w-full text-left p-4 border-b border-foreground hover:bg-primary/10 transition-colors group cursor-pointer flex items-center justify-between gap-4"
+              >
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg group-hover:text-primary transition-colors truncate">{article.title}</h3>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono mt-2">
                     <span className="flex items-center gap-1"><User className="w-3 h-3" /> {article.author}</span>
                     <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {article.createdAt}</span>
                   </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {article.tags.map((tag) => (
+                      <span key={tag} className="neu-badge-blue px-2 py-0.5 text-[10px]">{tag}</span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </button>
-          </motion.div>
-        ))}
-      </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

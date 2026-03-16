@@ -558,10 +558,16 @@ app.post('/api/quizzes', middleware.auth, async (req, res) => {
 
     const { title, topic, questions } = req.body;
     
+    // Ensure all questions have unique IDs
+    const questionsWithIds = questions.map((q, index) => ({
+      ...q,
+      id: q.id || `q-${Date.now()}-${index}`
+    }));
+    
     const quiz = {
       title,
       topic,
-      questions,
+      questions: questionsWithIds,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -569,6 +575,7 @@ app.post('/api/quizzes', middleware.auth, async (req, res) => {
     const result = await quizzesCollection.insertOne(quiz);
     res.json({ ...quiz, _id: result.insertedId });
   } catch (error) {
+    console.error('Quiz creation error:', error);
     res.status(500).json({ error: 'Failed to create quiz' });
   }
 });
@@ -584,13 +591,19 @@ app.put('/api/quizzes/:id', middleware.auth, async (req, res) => {
     
     const { title, topic, questions } = req.body;
     
+    // Ensure all questions have unique IDs
+    const questionsWithIds = questions.map((q, index) => ({
+      ...q,
+      id: q.id || `q-${Date.now()}-${index}`
+    }));
+    
     const result = await quizzesCollection.updateOne(
       { _id: objectId },
       {
         $set: {
           title,
           topic,
-          questions,
+          questions: questionsWithIds,
           updatedAt: new Date()
         }
       }
@@ -602,6 +615,7 @@ app.put('/api/quizzes/:id', middleware.auth, async (req, res) => {
 
     res.json({ message: 'Quiz updated' });
   } catch (error) {
+    console.error('Quiz update error:', error);
     res.status(500).json({ error: 'Failed to update quiz' });
   }
 });
@@ -627,7 +641,7 @@ app.delete('/api/quizzes/:id', middleware.auth, async (req, res) => {
 app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
   try {
     const { quizId } = req.params;
-    const { score, timeSpent } = req.body;
+    const { score, timeSpent, answers } = req.body;
     const userId = req.user._id || req.user.id;
 
     // Check if user has already attempted this quiz
@@ -640,15 +654,24 @@ app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
       return res.status(400).json({ error: 'You have already attempted this quiz. You can review your previous attempt.' });
     }
 
-    // Create leaderboard entry
+    // Create leaderboard entry with answers for review
     const leaderboardEntry = {
       quizId,
       userId: userId.toString(),
       username: req.user.username || req.user.email,
       points: score,
       timeSpent,
+      answers: answers || {}, // Store user's answers for review
       completedAt: new Date(),
     };
+
+    console.log('Storing quiz attempt with answers:', {
+      quizId,
+      userId: userId.toString(),
+      points: score,
+      answersCount: Object.keys(answers || {}).length,
+      answers: answers
+    });
 
     // Insert new entry (no upsert)
     await leaderboardCollection.insertOne(leaderboardEntry);
@@ -707,12 +730,48 @@ app.get('/api/quizzes/:quizId/check-attempt', middleware.auth, async (req, res) 
       attempt: attempt ? {
         points: attempt.points,
         timeSpent: attempt.timeSpent,
-        completedAt: attempt.completedAt
+        completedAt: attempt.completedAt,
+        answers: attempt.answers || {}
       } : null
     });
   } catch (error) {
     console.error('Check attempt error:', error);
     res.status(500).json({ error: 'Failed to check attempt status' });
+  }
+});
+
+// Get user's attempt details for review
+app.get('/api/quizzes/:quizId/attempt', middleware.auth, async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const userId = req.user._id || req.user.id;
+
+    const attempt = await leaderboardCollection.findOne({
+      quizId,
+      userId: userId.toString()
+    });
+
+    if (!attempt) {
+      return res.status(404).json({ error: 'No attempt found for this quiz' });
+    }
+
+    console.log('Fetching quiz attempt:', {
+      quizId,
+      userId: userId.toString(),
+      points: attempt.points,
+      answersCount: Object.keys(attempt.answers || {}).length,
+      answers: attempt.answers
+    });
+
+    res.json({
+      points: attempt.points,
+      timeSpent: attempt.timeSpent,
+      completedAt: attempt.completedAt,
+      answers: attempt.answers || {}
+    });
+  } catch (error) {
+    console.error('Attempt details fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch attempt details' });
   }
 });
 
