@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getImageUrl } from '@/lib/utils'
 
 interface ImageWithFallbackProps {
   src: string
@@ -15,7 +16,7 @@ export function ImageWithFallback({
   style,
   fallback = "https://images.unsplash.com/photo-1560472355-536de3962603?w=400&h=300&fit=crop" 
 }: ImageWithFallbackProps) {
-  const [imgSrc, setImgSrc] = useState(src)
+  const [imgSrc, setImgSrc] = useState(getImageUrl(src))
   const [hasError, setHasError] = useState(false)
 
   const handleError = () => {
