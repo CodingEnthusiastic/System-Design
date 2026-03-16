@@ -15,6 +15,13 @@ dotenv.config();
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Use persistent disk path on Render, local path in development
+const uploadsDir = process.env.NODE_ENV === 'production' 
+  ? '/opt/render/project/repo/server/uploads'
+  : path.join(__dirname, 'uploads');
+
+console.log(`📁 Using uploads directory: ${uploadsDir}`);
+
 // Determine allowed origin based on environment
 const getAllowedOrigin = () => {
   if (process.env.NODE_ENV === 'production') {
@@ -51,7 +58,7 @@ app.use('/uploads', (req, res, next) => {
   }
   
   next();
-}, express.static(path.join(__dirname, 'uploads'), {
+}, express.static(uploadsDir, {
   maxAge: '24h',
   etag: false,
   lastModified: false,
@@ -73,15 +80,15 @@ app.use('/uploads', (req, res) => {
 });
 
 // Ensure uploads directory exists
-if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
-  fs.mkdirSync(path.join(__dirname, 'uploads'), { recursive: true });
-  console.log('📁 Uploads directory created');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Uploads directory created/verified');
 }
 
 // Multer setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'uploads'));
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
