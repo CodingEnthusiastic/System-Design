@@ -222,7 +222,8 @@ app.post('/api/auth/verify', async (req, res) => {
       role: 'user',
       createdAt: new Date(),
       bio: '',
-      avatar: ''
+      avatar: '',
+      points: 0
     };
 
     await authCollection.insertOne(user);
@@ -642,12 +643,17 @@ app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
   try {
     const { quizId } = req.params;
     const { score, timeSpent, answers } = req.body;
-    const userId = req.user._id || req.user.id;
+    const userIdFromToken = req.user._id || req.user.id;
+    const userObjectId = toObjectId(userIdFromToken);
+
+    if (!userObjectId) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
 
     // Check if user has already attempted this quiz
     const existingAttempt = await leaderboardCollection.findOne({
       quizId,
-      userId: userId.toString()
+      userId: userObjectId
     });
 
     if (existingAttempt) {
@@ -657,7 +663,7 @@ app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
     // Create leaderboard entry with answers for review
     const leaderboardEntry = {
       quizId,
-      userId: userId.toString(),
+      userId: userObjectId,
       username: req.user.username || 'Anonymous',
       email: req.user.email,
       points: score,
@@ -668,7 +674,7 @@ app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
     
     console.log('Leaderboard entry being stored:', {
       quizId,
-      userId: userId.toString(),
+      userId: userObjectId.toString(),
       username: leaderboardEntry.username,
       email: leaderboardEntry.email,
       points: score
@@ -676,7 +682,7 @@ app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
 
     console.log('Storing quiz attempt with answers:', {
       quizId,
-      userId: userId.toString(),
+      userId: userObjectId.toString(),
       points: score,
       answersCount: Object.keys(answers || {}).length,
       answers: answers
@@ -685,16 +691,30 @@ app.post('/api/quizzes/:quizId/submit', middleware.auth, async (req, res) => {
     // Insert new entry (no upsert)
     await leaderboardCollection.insertOne(leaderboardEntry);
 
-    // Update user points
+    // Update user points - sum all quiz points for this user
+    // Handle both ObjectId and string formats for backward compatibility
+    const userIdStr = userObjectId.toString();
     const totalPoints = await leaderboardCollection.aggregate([
-      { $match: { userId: userId.toString() } },
+      { 
+        $match: { 
+          $or: [
+            { userId: userObjectId },
+            { userId: userIdStr }
+          ]
+        } 
+      },
       { $group: { _id: null, total: { $sum: '$points' } } }
     ]).toArray();
 
     const userPoints = totalPoints.length > 0 ? totalPoints[0].total : 0;
     
+    console.log('Updating user points:', {
+      userId: userObjectId.toString(),
+      totalPoints: userPoints
+    });
+
     await authCollection.updateOne(
-      { _id: new ObjectId(userId) },
+      { _id: userObjectId },
       { $set: { points: userPoints } }
     );
 
@@ -727,11 +747,21 @@ app.get('/api/quizzes/:quizId/leaderboard', async (req, res) => {
 app.get('/api/quizzes/:quizId/check-attempt', middleware.auth, async (req, res) => {
   try {
     const { quizId } = req.params;
-    const userId = req.user._id || req.user.id;
+    const userIdFromToken = req.user._id || req.user.id;
+    const userObjectId = toObjectId(userIdFromToken);
+    const userIdStr = userObjectId.toString();
 
+    if (!userObjectId) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Handle both ObjectId and string formats for backward compatibility
     const attempt = await leaderboardCollection.findOne({
       quizId,
-      userId: userId.toString()
+      $or: [
+        { userId: userObjectId },
+        { userId: userIdStr }
+      ]
     });
 
     res.json({ 
@@ -753,11 +783,21 @@ app.get('/api/quizzes/:quizId/check-attempt', middleware.auth, async (req, res) 
 app.get('/api/quizzes/:quizId/attempt', middleware.auth, async (req, res) => {
   try {
     const { quizId } = req.params;
-    const userId = req.user._id || req.user.id;
+    const userIdFromToken = req.user._id || req.user.id;
+    const userObjectId = toObjectId(userIdFromToken);
+    const userIdStr = userObjectId.toString();
 
+    if (!userObjectId) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Handle both ObjectId and string formats for backward compatibility
     const attempt = await leaderboardCollection.findOne({
       quizId,
-      userId: userId.toString()
+      $or: [
+        { userId: userObjectId },
+        { userId: userIdStr }
+      ]
     });
 
     if (!attempt) {
@@ -766,7 +806,7 @@ app.get('/api/quizzes/:quizId/attempt', middleware.auth, async (req, res) => {
 
     console.log('Fetching quiz attempt:', {
       quizId,
-      userId: userId.toString(),
+      userId: userIdStr,
       points: attempt.points,
       answersCount: Object.keys(attempt.answers || {}).length,
       answers: attempt.answers
@@ -932,6 +972,50 @@ app.get('/api/debug/users', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// ADMIN: Recalculate all user points from leaderboard
+app.post('/api/admin/recalculate-points', middleware.admin, async (req, res) => {
+  try {
+    // Get all users
+    const users = await authCollection.find({}).toArray();
+    let updatedCount = 0;
+
+    for (const user of users) {
+      // Get all leaderboard entries for this user (handle both ObjectId and string formats)
+      const userIdStr = user._id.toString();
+      const totalPoints = await leaderboardCollection.aggregate([
+        { 
+          $match: { 
+            $or: [
+              { userId: user._id },
+              { userId: userIdStr }
+            ]
+          } 
+        },
+        { $group: { _id: null, total: { $sum: '$points' } } }
+      ]).toArray();
+
+      const userPoints = totalPoints.length > 0 ? totalPoints[0].total : 0;
+      
+      // Update user points
+      await authCollection.updateOne(
+        { _id: user._id },
+        { $set: { points: userPoints } }
+      );
+      
+      updatedCount++;
+      console.log(`Updated ${user.username} (${user.email}): ${userPoints} points`);
+    }
+
+    res.json({ 
+      message: 'Points recalculated successfully',
+      updatedUsers: updatedCount
+    });
+  } catch (error) {
+    console.error('Recalculate points error:', error);
+    res.status(500).json({ error: 'Failed to recalculate points' });
   }
 });
 

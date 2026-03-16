@@ -112,13 +112,25 @@ export default function QuizzesPage() {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         const token = localStorage.getItem('authToken');
         
-        if (token) {
-          const response = await fetch(`${API_URL}/api/quizzes/${selectedQuiz.id}/attempt`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (response.ok) {
-            const attempt = await response.json();
+        if (!token) {
+          setHasAttempted(false);
+          setUserScore(0);
+          setUserAnswers({});
+          setAttemptTimeSpent(0);
+          setAttemptCompletedAt('');
+          return;
+        }
+
+        const response = await fetch(`${API_URL}/api/quizzes/${selectedQuiz.id}/attempt`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const attempt = await response.json();
+          if (attempt && attempt.points !== undefined) {
             setHasAttempted(true);
             setUserScore(attempt.points);
             setUserAnswers(attempt.answers || {});
@@ -131,10 +143,25 @@ export default function QuizzesPage() {
             setAttemptTimeSpent(0);
             setAttemptCompletedAt('');
           }
+        } else if (response.status === 404) {
+          // Not attempted yet
+          setHasAttempted(false);
+          setUserScore(0);
+          setUserAnswers({});
+          setAttemptTimeSpent(0);
+          setAttemptCompletedAt('');
+        } else {
+          console.error(`Server error: ${response.status}`);
+          setHasAttempted(false);
         }
       } catch (error) {
         console.error('Error checking quiz attempt:', error);
+        // Don't crash - just assume not attempted
         setHasAttempted(false);
+        setUserScore(0);
+        setUserAnswers({});
+        setAttemptTimeSpent(0);
+        setAttemptCompletedAt('');
       }
     };
 

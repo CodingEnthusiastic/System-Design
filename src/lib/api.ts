@@ -16,7 +16,25 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
+}, (error) => {
+  console.error('Request interceptor error:', error);
+  return Promise.reject(error);
 });
+
+// Handle responses with better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear token and redirect to login on unauthorized
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    } else if (error.response?.status === 500) {
+      console.error('Server error:', error.response.data?.error || 'Internal server error');
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Auth APIs
 export const authAPI = {

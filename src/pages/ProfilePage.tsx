@@ -25,32 +25,38 @@ export default function ProfilePage() {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         const token = localStorage.getItem('authToken');
         
+        if (!token) {
+          throw new Error('No authentication token');
+        }
+        
         const response = await fetch(`${API_URL}/api/auth/profile`, {
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           },
         });
 
         if (response.ok) {
           const data = await response.json();
-          setUserData(data);
+          if (data && data._id) {
+            setUserData(data);
+          } else {
+            throw new Error('Invalid profile data');
+          }
+        } else if (response.status === 401) {
+          throw new Error('Unauthorized - please log in again');
         } else {
-          // Fallback to user from auth context
-          setUserData({
-            _id: user.id || '',
-            username: user.username || '',
-            email: user.email,
-            role: user.role,
-            points: 0,
-          });
+          throw new Error(`Server error: ${response.status}`);
         }
       } catch (error) {
-        console.log('Failed to fetch user profile, using context data');
+        console.log('Failed to fetch user profile:', error);
+        // Fallback to user from auth context with safe defaults
         setUserData({
           _id: user.id || '',
-          username: user.username || '',
-          email: user.email,
-          role: user.role,
+          username: user.username || 'Unknown',
+          email: user.email || 'unknown@example.com',
+          role: user.role || 'user',
           points: 0,
         });
       } finally {
