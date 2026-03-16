@@ -13,7 +13,14 @@ export function getImageUrl(imagePath: string): string {
     return imagePath;
   }
   
-  // If it's a relative path, prepend the API URL
+  // For production deployment, use the API URL from environment
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-  return `${API_URL}${imagePath}`;
+  const imageUrl = `${API_URL}${imagePath}`;
+  
+  // Log for debugging
+  if (import.meta.env.DEV) {
+    console.log('Image URL constructed:', { imagePath, apiUrl: API_URL, fullUrl: imageUrl });
+  }
+  
+  return imageUrl;
 }

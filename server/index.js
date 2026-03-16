@@ -15,19 +15,42 @@ dotenv.config();
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Determine allowed origin based on environment
+const getAllowedOrigin = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // In production, allow multiple domains
+    return [
+      process.env.FRONTEND_URL,
+      'https://systempoint.netlify.app',
+      'https://system-design-frontend.netlify.app',
+    ].filter(Boolean);
+  }
+  // In development, allow localhost
+  return process.env.FRONTEND_URL || 'http://localhost:8080';
+};
+
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: getAllowedOrigin(),
   credentials: true
 }));
 
-// Static files for uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static files for uploads with proper headers
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Cache-Control', 'public, max-age=3600');
+  next();
+}, express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1h',
+  etag: false
+}));
 
 // Ensure uploads directory exists
 if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
   fs.mkdirSync(path.join(__dirname, 'uploads'), { recursive: true });
+  console.log('📁 Uploads directory created');
 }
 
 // Multer setup
