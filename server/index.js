@@ -38,14 +38,39 @@ app.use(cors({
 
 // Static files for uploads with proper headers
 app.use('/uploads', (req, res, next) => {
+  // Allow all origins for images (public assets)
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.header('Cache-Control', 'public, max-age=3600');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Cache-Control', 'public, max-age=86400'); // 24 hours
+  res.header('ETag', 'false');
+  
+  // Log image requests in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📸 Image request: ${req.method} ${req.url}`);
+  }
+  
   next();
 }, express.static(path.join(__dirname, 'uploads'), {
-  maxAge: '1h',
-  etag: false
+  maxAge: '24h',
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  }
 }));
+
+// 404 handler for missing images
+app.use('/uploads', (req, res) => {
+  console.error(`❌ Image not found: ${req.url}`);
+  res.status(404).json({ 
+    error: 'Image not found',
+    path: req.url,
+    availableAt: process.env.NODE_ENV === 'production' 
+      ? process.env.FRONTEND_URL 
+      : 'http://localhost:5000'
+  });
+});
 
 // Ensure uploads directory exists
 if (!fs.existsSync(path.join(__dirname, 'uploads'))) {

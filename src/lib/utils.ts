@@ -15,11 +15,19 @@ export function getImageUrl(imagePath: string): string {
   
   // For production deployment, use the API URL from environment
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-  const imageUrl = `${API_URL}${imagePath}`;
   
-  // Log for debugging
+  // Ensure imagePath starts with /
+  const normalizedPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+  const imageUrl = `${API_URL}${normalizedPath}`;
+  
+  // Log for debugging in development
   if (import.meta.env.DEV) {
-    console.log('Image URL constructed:', { imagePath, apiUrl: API_URL, fullUrl: imageUrl });
+    console.log('🖼️  Image URL:', { 
+      original: imagePath, 
+      normalized: normalizedPath,
+      apiUrl: API_URL, 
+      fullUrl: imageUrl 
+    });
   }
   
   return imageUrl;
