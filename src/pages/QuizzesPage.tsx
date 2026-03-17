@@ -85,7 +85,6 @@ export default function QuizzesPage() {
           }
         }
       } catch (error) {
-        console.log('Using mock data (API not available)');
         setQuizzes(mockQuizzes);
       } finally {
         setLoading(false);
@@ -151,11 +150,9 @@ export default function QuizzesPage() {
           setAttemptTimeSpent(0);
           setAttemptCompletedAt('');
         } else {
-          console.error(`Server error: ${response.status}`);
           setHasAttempted(false);
         }
       } catch (error) {
-        console.error('Error checking quiz attempt:', error);
         // Don't crash - just assume not attempted
         setHasAttempted(false);
         setUserScore(0);

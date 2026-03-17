@@ -51,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const data = await response.json();
-        console.error('Login error:', data.error);
         return false;
       }
 
@@ -61,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       return true;
     } catch (error) {
-      console.error('Login failed:', error);
       return false;
     }
   };
