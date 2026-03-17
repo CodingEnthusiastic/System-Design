@@ -45,7 +45,6 @@ export default function AdminPage() {
   const loadArticles = async () => {
     try {
       const articlesRes = await articlesAPI.getAll();
-      console.log('📚 Articles loaded from API:', articlesRes.data);
       const transformedArticles = articlesRes.data.map((a: any) => ({
         id: a._id,
         title: a.title,
@@ -57,19 +56,16 @@ export default function AdminPage() {
       }));
       setArticlesList(transformedArticles);
     } catch (error) {
-      console.error('Failed to load articles:', error);
       setArticlesList([]);
     }
   };
 
   const refreshArticles = async () => {
-    console.log('🔄 Refreshing articles...');
     setIsLoading(true);
     try {
       await loadArticles();
       alert('✅ Articles refreshed successfully');
     } catch (error) {
-      console.error('Refresh failed:', error);
       alert('❌ Failed to refresh articles');
     } finally {
       setIsLoading(false);
@@ -95,7 +91,6 @@ export default function AdminPage() {
         }));
         setCoursesList(transformedCourses);
       } catch (error) {
-        console.error('Failed to load courses:', error);
         setCoursesList([]);
       }
 
@@ -113,7 +108,6 @@ export default function AdminPage() {
         }));
         setQuizzesList(transformedQuizzes);
       } catch (error) {
-        console.error('Failed to load quizzes:', error);
         setQuizzesList([]);
       }
 
@@ -129,7 +123,6 @@ export default function AdminPage() {
         }));
         setUsersList(transformedUsers);
       } catch (error) {
-        console.error('Failed to load users:', error);
         setUsersList([]);
       }
       setIsLoading(false);
@@ -157,7 +150,6 @@ export default function AdminPage() {
       await coursesAPI.delete(id);
       setCoursesList((p) => p.filter((c) => c.id !== id));
     } catch (error) {
-      console.error('Failed to delete course:', error);
       alert('Failed to delete course');
     }
   };
@@ -167,7 +159,6 @@ export default function AdminPage() {
       await articlesAPI.delete(id);
       setArticlesList((p) => p.filter((a) => a.id !== id));
     } catch (error) {
-      console.error('Failed to delete article:', error);
       alert('Failed to delete article');
     }
   };
@@ -177,7 +168,6 @@ export default function AdminPage() {
       await quizzesAPI.delete(id);
       setQuizzesList((p) => p.filter((q) => q.id !== id));
     } catch (error) {
-      console.error('Failed to delete quiz:', error);
       alert('Failed to delete quiz');
     }
   };
@@ -201,7 +191,6 @@ export default function AdminPage() {
         alert('ℹ️ No broken images found in database.');
       }
     } catch (error) {
-      console.error('Cleanup failed:', error);
       alert('Failed to cleanup broken images');
     } finally {
       setIsLoading(false);
@@ -315,7 +304,6 @@ export default function AdminPage() {
       }
       setEditingArticle(null);
     } catch (error) {
-      console.error('Failed to save article:', error);
       alert('Failed to save article');
     }
   };
@@ -421,7 +409,6 @@ export default function AdminPage() {
       }
       setEditingCourse(null);
     } catch (error) {
-      console.error('Failed to save course:', error);
       alert('Failed to save course');
     }
   };
@@ -484,7 +471,6 @@ export default function AdminPage() {
       setQuizForm({ title: '', topic: '', questions: [] });
       setEditingQuestionIndex(null);
     } catch (error) {
-      console.error('Failed to save quiz:', error);
       alert('Failed to save quiz');
     }
   };
@@ -1173,7 +1159,6 @@ export default function AdminPage() {
                               await usersAPI.delete(u.id);
                               setUsersList((p) => p.filter((user) => user.id !== u.id));
                             } catch (error) {
-                              console.error('Failed to delete user:', error);
                               alert('Failed to delete user');
                             }
                           }

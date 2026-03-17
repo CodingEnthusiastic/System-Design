@@ -17,7 +17,6 @@ api.interceptors.request.use((config) => {
   }
   return config;
 }, (error) => {
-  console.error('Request interceptor error:', error);
   return Promise.reject(error);
 });
 
@@ -30,7 +29,6 @@ api.interceptors.response.use(
       localStorage.removeItem('authToken');
       window.location.href = '/login';
     } else if (error.response?.status === 500) {
-      console.error('Server error:', error.response.data?.error || 'Internal server error');
     }
     return Promise.reject(error);
   }

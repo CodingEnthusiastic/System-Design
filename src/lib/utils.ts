@@ -26,7 +26,6 @@ export function getImageUrl(imagePath: string): string {
   
   // Reject local paths like /uploads/ - they don't exist anymore
   if (imagePath.startsWith('/')) {
-    console.warn('⚠️  Rejected old server path:', imagePath);
     return '';
   }
   

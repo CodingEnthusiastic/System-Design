@@ -31,8 +31,6 @@ export default function QuizLeaderboard({ quizId, quizTitle }: QuizLeaderboardPr
         const response = await quizzesAPI.getLeaderboard(quizId);
         const data = response.data;
         
-        console.log('Leaderboard data received:', data);
-        
         if (!data || data.length === 0) {
           setLeaderboard([]);
           return;
@@ -51,7 +49,6 @@ export default function QuizLeaderboard({ quizId, quizTitle }: QuizLeaderboardPr
         }));
         setLeaderboard(withRanks);
       } catch (err: any) {
-        console.error('Leaderboard fetch error:', err);
         setError('Could not load leaderboard');
       } finally {
         setLoading(false);

@@ -34,7 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setUser(JSON.parse(userData));
       } catch (error) {
-        console.error('Failed to restore user session:', error);
         localStorage.removeItem('authToken');
         localStorage.removeItem('userData');
       }

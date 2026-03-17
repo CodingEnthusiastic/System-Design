@@ -68,7 +68,6 @@ export default function RegisterPage() {
       setStep('verify');
     } catch (err) {
       setError('Registration failed. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -116,7 +115,6 @@ export default function RegisterPage() {
       }, 1500);
     } catch (err) {
       setError('Verification failed. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
