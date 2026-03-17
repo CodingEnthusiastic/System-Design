@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Course, Article, Quiz, Lesson, QuizQuestion } from '@/data/mockData';
-import { Plus, Trash2, Edit3, BookOpen, FileText, Brain, Users, X, Save, Loader, Upload } from 'lucide-react';
+import { Plus, Trash2, Edit3, BookOpen, FileText, Brain, Users, X, Save, Loader, Link2, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { RichTextEditor } from '@/components/RichTextEditor';
-import { articlesAPI, quizzesAPI, coursesAPI, uploadAPI, usersAPI } from '@/lib/api';
+import { articlesAPI, quizzesAPI, coursesAPI, usersAPI } from '@/lib/api';
 import { getImageUrl } from '@/lib/utils';
 
 type Tab = 'courses' | 'articles' | 'quizzes' | 'users';
@@ -19,11 +19,13 @@ export default function AdminPage() {
   const [articlesList, setArticlesList] = useState<Article[]>([]);
   const [quizzesList, setQuizzesList] = useState<Quiz[]>([]);
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Article editor state
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [articleForm, setArticleForm] = useState({ title: '', content: '', tags: '', images: [] as string[] });
-  const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const articleImageInputRef = useRef<HTMLInputElement>(null);
 
   // Course editor state
@@ -40,9 +42,44 @@ export default function AdminPage() {
 
   if (!isAdmin) return <Navigate to="/" replace />;
 
+  const loadArticles = async () => {
+    try {
+      const articlesRes = await articlesAPI.getAll();
+      console.log('📚 Articles loaded from API:', articlesRes.data);
+      const transformedArticles = articlesRes.data.map((a: any) => ({
+        id: a._id,
+        title: a.title,
+        content: a.content,
+        images: a.images || [],
+        author: a.author || 'Admin',
+        createdAt: a.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+        tags: a.tags || [],
+      }));
+      setArticlesList(transformedArticles);
+    } catch (error) {
+      console.error('Failed to load articles:', error);
+      setArticlesList([]);
+    }
+  };
+
+  const refreshArticles = async () => {
+    console.log('🔄 Refreshing articles...');
+    setIsLoading(true);
+    try {
+      await loadArticles();
+      alert('✅ Articles refreshed successfully');
+    } catch (error) {
+      console.error('Refresh failed:', error);
+      alert('❌ Failed to refresh articles');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load data from database on mount
   useEffect(() => {
     const loadData = async () => {
+      setIsLoading(true);
       try {
         // Load courses from DB
         const coursesRes = await coursesAPI.getAll();
@@ -62,23 +99,8 @@ export default function AdminPage() {
         setCoursesList([]);
       }
 
-      try {
-        // Load articles from DB
-        const articlesRes = await articlesAPI.getAll();
-        const transformedArticles = articlesRes.data.map((a: any) => ({
-          id: a._id,
-          title: a.title,
-          content: a.content,
-          images: a.images || [],
-          author: a.author || 'Admin',
-          createdAt: a.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-          tags: a.tags || [],
-        }));
-        setArticlesList(transformedArticles);
-      } catch (error) {
-        console.error('Failed to load articles:', error);
-        setArticlesList([]);
-      }
+      // Load articles
+      await loadArticles();
 
       try {
         // Load quizzes from DB
@@ -110,10 +132,18 @@ export default function AdminPage() {
         console.error('Failed to load users:', error);
         setUsersList([]);
       }
+      setIsLoading(false);
     };
 
     loadData();
   }, []);
+
+  // Auto-refresh articles when switching to articles tab
+  useEffect(() => {
+    if (activeTab === 'articles') {
+      loadArticles();
+    }
+  }, [activeTab]);
 
   const tabs: { id: Tab; label: string; icon: typeof BookOpen }[] = [
     { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -152,6 +182,32 @@ export default function AdminPage() {
     }
   };
 
+  const cleanupBrokenImages = async () => {
+    const confirmCleanup = window.confirm(
+      'This will remove ALL broken server image URLs (/uploads/...) from ALL articles in the database. This cannot be undone. Continue?'
+    );
+    if (!confirmCleanup) return;
+
+    try {
+      setIsLoading(true);
+      const response = await articlesAPI.cleanupBrokenImages();
+      const { cleanedCount } = response.data;
+      
+      if (cleanedCount > 0) {
+        alert(`✅ Cleaned database! Removed broken images from ${cleanedCount} article(s).`);
+        // Reload articles
+        await loadArticles();
+      } else {
+        alert('ℹ️ No broken images found in database.');
+      }
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+      alert('Failed to cleanup broken images');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // ============ ARTICLE FUNCTIONS ============
   const openArticleEditor = (article?: Article) => {
     if (article) {
@@ -168,26 +224,54 @@ export default function AdminPage() {
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    setUploadingImages(true);
-    const uploadedUrls: string[] = [];
-
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const response = await uploadAPI.uploadFile(files[i]);
-        uploadedUrls.push(response.data.url);
-      }
-      setArticleForm((p) => ({ ...p, images: [...p.images, ...uploadedUrls] }));
-    } catch (error) {
-      console.error('Image upload failed:', error);
-      alert('Failed to upload images');
-    } finally {
-      setUploadingImages(false);
-      if (articleImageInputRef.current) articleImageInputRef.current.value = '';
+  const normalizeGoogleDriveUrl = (url: string): string => {
+    // Extract file ID from various Google Drive URL formats
+    let fileId = '';
+    
+    // Format 1: https://drive.google.com/file/d/FILE_ID/view or variations
+    const match1 = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+    if (match1) {
+      fileId = match1[1];
     }
+    
+    // Format 2: https://drive.google.com/open?id=FILE_ID
+    const match2 = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+    if (match2 && !fileId) {
+      fileId = match2[1];
+    }
+    
+    // Format 3: Already in uc?export=view format
+    if (url.includes('uc?export=view')) {
+      return url;
+    }
+    
+    if (fileId) {
+      // Convert to direct view URL that works in img tags
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    
+    // If we couldn't extract ID, return original URL
+    return url;
+  };
+
+  const addImageUrl = () => {
+    const url = imageUrl.trim();
+    
+    if (!url) {
+      alert('Please enter a valid URL');
+      return;
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      alert('URL must start with http:// or https://');
+      return;
+    }
+
+    // Normalize Google Drive URLs to direct view format
+    const normalizedUrl = url.includes('drive.google.com') ? normalizeGoogleDriveUrl(url) : url;
+    
+    setArticleForm((p) => ({ ...p, images: [...p.images, normalizedUrl] }));
+    setImageUrl('');
   };
 
   const removeArticleImage = (index: number) => {
@@ -292,6 +376,11 @@ export default function AdminPage() {
       return;
     }
 
+    // Normalize thumbnail URL if it's a Google Drive URL
+    const normalizedThumbnail = courseForm.thumbnail.includes('drive.google.com') 
+      ? normalizeGoogleDriveUrl(courseForm.thumbnail) 
+      : courseForm.thumbnail;
+
     const course: Course = {
       ...editingCourse,
       id: editingCourse.id || String(Date.now()),
@@ -299,7 +388,7 @@ export default function AdminPage() {
       description: courseForm.description,
       category: courseForm.category as 'HLD' | 'LLD' | 'Fundamentals',
       difficulty: courseForm.difficulty as 'Beginner' | 'Intermediate' | 'Advanced',
-      thumbnail: courseForm.thumbnail,
+      thumbnail: normalizedThumbnail,
       lessons: courseForm.lessons,
       totalDuration: `${courseForm.lessons.length}h`,
     };
@@ -505,40 +594,53 @@ export default function AdminPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold uppercase tracking-wider mb-2">Upload Images</label>
+                <label className="block text-sm font-bold uppercase tracking-wider mb-2">Image URLs (Google Drive)</label>
                 <div className="flex items-center gap-2 mb-4">
                   <input
-                    ref={articleImageInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImages}
-                    className="hidden"
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="Paste Google Drive image URL here..."
+                    className="neu-input flex-1 px-4 py-2 text-sm text-foreground font-mono"
+                    onKeyPress={(e) => e.key === 'Enter' && addImageUrl()}
                   />
                   <button
-                    onClick={() => articleImageInputRef.current?.click()}
-                    disabled={uploadingImages}
-                    className="neu-btn-blue px-4 py-2 text-sm inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    onClick={addImageUrl}
+                    className="neu-btn-blue px-4 py-2 text-sm inline-flex items-center gap-2 cursor-pointer"
                   >
-                    <Upload className="w-4 h-4" />
-                    {uploadingImages ? 'Uploading...' : 'Add Images'}
+                    <Link2 className="w-4 h-4" />
+                    Add URL
                   </button>
                 </div>
-                {articleForm.images.length > 0 && (
+                {articleForm.images.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3">
-                    {articleForm.images.map((img, idx) => (
-                      <div key={idx} className="relative">
-                        <img src={getImageUrl(img)} alt={`Article ${idx}`} className="w-full h-24 object-cover border-3 border-border" />
-                        <button
-                          onClick={() => removeArticleImage(idx)}
-                          className="absolute top-1 right-1 bg-red-600 text-white p-1 border border-white cursor-pointer hover:bg-red-700"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                    {articleForm.images.map((img, idx) => {
+                      const imageUrl = getImageUrl(img);
+                      return imageUrl ? (
+                        <div key={idx} className="relative">
+                          <img src={imageUrl} alt={`Article ${idx}`} className="w-full h-24 object-cover border-3 border-border" onError={(e) => {e.currentTarget.style.display = 'none';}} />
+                          <button
+                            onClick={() => removeArticleImage(idx)}
+                            className="absolute top-1 right-1 bg-red-600 text-white p-1 border border-white cursor-pointer hover:bg-red-700"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div key={idx} className="relative h-24 bg-secondary border-3 border-border flex items-center justify-center text-xs text-muted-foreground">
+                          <span>Broken: {img.substring(0, 20)}...</span>
+                          <button
+                            onClick={() => removeArticleImage(idx)}
+                            className="absolute top-1 right-1 bg-red-600 text-white p-1 border border-white cursor-pointer hover:bg-red-700"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground italic">No images added yet</div>
                 )}
               </div>
 
@@ -627,10 +729,11 @@ export default function AdminPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold uppercase tracking-wider mb-2">Thumbnail URL</label>
+                <label className="block text-sm font-bold uppercase tracking-wider mb-2">Thumbnail URL (Google Drive)</label>
                 <input
                   value={courseForm.thumbnail}
                   onChange={(e) => setCourseForm((p) => ({ ...p, thumbnail: e.target.value }))}
+                  placeholder="Paste Google Drive image URL..."
                   className="neu-input w-full px-4 py-3 text-foreground font-mono text-sm"
                 />
               </div>
@@ -915,9 +1018,24 @@ export default function AdminPage() {
                 <Plus className="w-4 h-4" /> Add Course
               </button>
             </div>
-            {coursesList.map((course) => (
+            {coursesList.map((course) => {
+              const thumbUrl = getImageUrl(course.thumbnail);
+              const imageFailedToLoad = failedImages.has(course.thumbnail || '');
+              return (
               <div key={course.id} className="neu-card p-5 flex items-center gap-4">
-                <img src={getImageUrl(course.thumbnail)} alt="" className="w-20 h-14 object-cover border-2 border-foreground shrink-0" />
+                {thumbUrl && !imageFailedToLoad ? (
+                  <img 
+                    src={thumbUrl} 
+                    alt="" 
+                    className="w-20 h-14 object-cover border-2 border-foreground shrink-0" 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      setFailedImages(prev => new Set([...prev, course.thumbnail || '']));
+                    }} 
+                  />
+                ) : (
+                  <div className="w-20 h-14 bg-secondary border-2 border-foreground flex items-center justify-center shrink-0 text-xs text-muted-foreground">No Image</div>
+                )}
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold truncate">{course.title}</h4>
                   <p className="text-sm text-muted-foreground font-mono">{course.lessons.length} lessons · {course.category} · {course.difficulty}</p>
@@ -931,21 +1049,48 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 
         {activeTab === 'articles' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold uppercase tracking-wider">{articlesList.length} Articles</h3>
-              <button onClick={() => openArticleEditor()} className="neu-btn-blue px-4 py-2 text-sm inline-flex items-center gap-2 cursor-pointer">
-                <Plus className="w-4 h-4" /> Add Article
-              </button>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold uppercase tracking-wider">{articlesList.length} Articles</h3>
+                <button onClick={refreshArticles} disabled={isLoading} className="p-1 border border-foreground hover:bg-primary/20 cursor-pointer disabled:opacity-50" title="Refresh articles from database">
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={cleanupBrokenImages} className="neu-btn px-3 py-2 text-xs inline-flex items-center gap-1 cursor-pointer" style={{ background: '#FCA50030', boxShadow: '1px 1px 0px #FCA500' }}>
+                  🧹 Cleanup Old Images
+                </button>
+                <button onClick={() => openArticleEditor()} className="neu-btn-blue px-4 py-2 text-sm inline-flex items-center gap-2 cursor-pointer">
+                  <Plus className="w-4 h-4" /> Add Article
+                </button>
+              </div>
             </div>
-            {articlesList.map((article) => (
+            {articlesList.map((article) => {
+              const articleThumbUrl = article.images && article.images.length > 0 ? getImageUrl(article.images[0]) : '';
+              const imageFailedToLoad = failedImages.has(article.images?.[0] || '');
+              
+              return (
               <div key={article.id} className="neu-card p-5 flex items-center gap-4">
-                {article.images[0] && <img src={getImageUrl(article.images[0])} alt="" className="w-20 h-14 object-cover border-2 border-foreground shrink-0" />}
+                {articleThumbUrl && !imageFailedToLoad ? (
+                  <img 
+                    src={articleThumbUrl} 
+                    alt="" 
+                    className="w-20 h-14 object-cover border-2 border-foreground shrink-0" 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      setFailedImages(prev => new Set([...prev, article.images?.[0] || '']));
+                    }} 
+                  />
+                ) : (
+                  <div className="w-20 h-14 bg-secondary border-2 border-foreground flex items-center justify-center shrink-0 text-xs text-muted-foreground">No Image</div>
+                )}
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold truncate">{article.title}</h4>
                   <p className="text-sm text-muted-foreground font-mono">{article.tags.join(', ')}</p>
@@ -959,7 +1104,8 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 

@@ -79,6 +79,49 @@ app.use('/uploads', (req, res) => {
   });
 });
 
+// Google Drive Image Proxy - Fetches images from Google Drive and serves them
+// This bypasses CORS issues when loading Google Drive images in <img> tags
+app.get('/api/proxy/gdrive/:fileId', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    // Validate file ID format (basic check)
+    if (!fileId || !/^[a-zA-Z0-9-_]+$/.test(fileId)) {
+      return res.status(400).json({ error: 'Invalid file ID format' });
+    }
+    
+    // Fetch from Google Drive direct access URL
+    const driveUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    
+    const response = await fetch(driveUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`❌ Google Drive fetch failed for ${fileId}: ${response.status}`);
+      return res.status(response.status).json({ error: 'Failed to fetch image from Google Drive' });
+    }
+    
+    // Get content type
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    // Set cache headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    // Get buffer and send it
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+    console.log(`✅ Proxied Google Drive image: ${fileId}`);
+  } catch (error) {
+    console.error('Google Drive proxy error:', error);
+    res.status(500).json({ error: 'Failed to proxy image' });
+  }
+});
+
 // Ensure uploads directory exists
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -473,6 +516,40 @@ app.delete('/api/articles/:id', middleware.auth, async (req, res) => {
     res.json({ message: 'Article deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete article' });
+  }
+});
+
+// CLEANUP BROKEN IMAGES - Remove all /uploads/ URLs from articles
+app.post('/api/articles/cleanup/broken-images', middleware.admin, async (req, res) => {
+  try {
+    // Get all articles
+    const articles = await articlesCollection.find({}).toArray();
+    let cleanedCount = 0;
+
+    for (const article of articles) {
+      if (article.images && article.images.length > 0) {
+        // Filter out /uploads/ URLs
+        const cleanedImages = article.images.filter(img => !String(img).startsWith('/uploads/'));
+        
+        // If images were removed, update the article
+        if (cleanedImages.length < article.images.length) {
+          await articlesCollection.updateOne(
+            { _id: article._id },
+            { $set: { images: cleanedImages } }
+          );
+          cleanedCount++;
+          console.log(`✅ Cleaned article: ${article.title}`);
+        }
+      }
+    }
+
+    res.json({ 
+      message: `Cleaned ${cleanedCount} article(s)`,
+      cleanedCount 
+    });
+  } catch (error) {
+    console.error('Cleanup error:', error);
+    res.status(500).json({ error: 'Failed to cleanup broken images' });
   }
 });
 

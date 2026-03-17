@@ -55,6 +55,7 @@ export const articlesAPI = {
   create: (data: any) => api.post('/api/articles', data),
   update: (id: string, data: any) => api.put(`/api/articles/${id}`, data),
   delete: (id: string) => api.delete(`/api/articles/${id}`),
+  cleanupBrokenImages: () => api.post('/api/articles/cleanup/broken-images', {}),
 };
 
 // Courses APIs
