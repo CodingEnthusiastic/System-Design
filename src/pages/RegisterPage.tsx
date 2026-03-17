@@ -47,15 +47,27 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Add timeout to prevent hanging (increased to 10 seconds since emails are async now)
+      // Add timeout to prevent hanging (10 seconds for production auto-verify, 5 for dev)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      await authAPI.register(formData.username, formData.email, formData.password);
+      const response = await authAPI.register(formData.username, formData.email, formData.password);
       clearTimeout(timeoutId);
 
-      setSuccess('✓ Verification code sent to your email!');
-      setStep('verify');
+      // Check if production auto-verified (token returned immediately)
+      if (response.data.token) {
+        // Production: auto-verified, skip verification step
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('userData', JSON.stringify(response.data.user));
+        setSuccess('✓ Account created successfully!');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      } else {
+        // Development: email verification required
+        setSuccess('✓ Verification code sent to your email!');
+        setStep('verify');
+      }
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
@@ -80,9 +92,9 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Add timeout to prevent hanging (5 seconds should be enough for DB operations)
+      // Add timeout (5 seconds should be enough for verify)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const response = await authAPI.verify(formData.email, verifyData.code);
       clearTimeout(timeoutId);

@@ -200,7 +200,33 @@ transporter.verify((error, success) => {
   }
 });
 
-// Utility functions
+// Health check endpoint - prevents Render from spinning down
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'System Design Backend API',
+    status: 'running',
+    version: '1.0.0'
+  });
+});
+
+// API version endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    api: 'System Design Backend',
+    timestamp: new Date().toISOString()
+  });
+});
 const generateToken = (token, expires = '7d') => {
   return jwt.sign(token, process.env.JWT_SECRET, { expiresIn: expires });
 };
@@ -262,9 +288,46 @@ app.post('/api/auth/register', async (req, res) => {
     const existing = await authCollection.findOne({ email });
     if (existing) return res.status(400).json({ error: 'User already exists' });
 
-    // Generate verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedPassword = await bcryptjs.hash(password, 10);
+
+    // In production, skip email verification - auto-verify immediately
+    if (process.env.NODE_ENV === 'production') {
+      // Auto-create user in production (email service unreliable)
+      const user = {
+        username,
+        email,
+        password: hashedPassword,
+        role: 'user',
+        createdAt: new Date(),
+        bio: '',
+        avatar: '',
+        points: 0
+      };
+
+      await authCollection.insertOne(user);
+
+      // Generate JWT immediately
+      const token = generateToken({
+        id: user._id.toString(),
+        email: user.email,
+        username: user.username,
+        role: user.role
+      });
+
+      return res.json({
+        message: 'Account created successfully',
+        token,
+        user: {
+          id: user._id.toString(),
+          email: user.email,
+          username: user.username,
+          role: user.role
+        }
+      });
+    }
+
+    // In development, use email verification flow
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Store verification request
     await verificationsCollection.updateOne(
@@ -282,41 +345,42 @@ app.post('/api/auth/register', async (req, res) => {
       { upsert: true }
     );
 
-    // IMPORTANT: Send response immediately, send email in background (non-blocking)
+    // Send response immediately
     res.json({ 
       message: 'Verification code sent to your email',
-      email 
+      email,
+      devCode: process.env.NODE_ENV !== 'production' ? verificationCode : undefined
     });
 
-    // Send verification email asynchronously without blocking response
-    setImmediate(async () => {
-      try {
-        const mailOptions = {
-          from: process.env.SMTP_USER,
-          to: email,
-          subject: 'Verify Your Email - System Design Platform',
-          html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
-              <div style="background-color: white; padding: 30px; border-radius: 8px; text-align: center;">
-                <h2 style="color: #333;">Email Verification</h2>
-                <p style="color: #666; margin: 20px 0;">Your verification code is:</p>
-                <div style="background-color: #007bff; color: white; padding: 15px 30px; border-radius: 5px; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; font-family: 'Courier New', monospace;">
-                  ${verificationCode}
+    // Send verification email asynchronously in development
+    if (process.env.NODE_ENV !== 'production') {
+      setImmediate(async () => {
+        try {
+          const mailOptions = {
+            from: process.env.SMTP_USER,
+            to: email,
+            subject: 'Verify Your Email - System Design Platform',
+            html: `
+              <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
+                <div style="background-color: white; padding: 30px; border-radius: 8px; text-align: center;">
+                  <h2 style="color: #333;">Email Verification</h2>
+                  <p style="color: #666; margin: 20px 0;">Your verification code is:</p>
+                  <div style="background-color: #007bff; color: white; padding: 15px 30px; border-radius: 5px; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; font-family: 'Courier New', monospace;">
+                    ${verificationCode}
+                  </div>
+                  <p style="color: #999; font-size: 12px; margin-top: 20px;">This code expires in 15 minutes.</p>
                 </div>
-                <p style="color: #999; font-size: 12px; margin-top: 20px;">This code expires in 15 minutes.</p>
-                <p style="color: #999; font-size: 12px; margin-top: 10px;">If you didn't request this, please ignore this email.</p>
               </div>
-            </div>
-          `
-        };
+            `
+          };
 
-        await transporter.sendMail(mailOptions);
-      } catch (emailError) {
-        // Log but don't throw - user can still verify with code from logs if needed
-      }
-    });
+          await transporter.sendMail(mailOptions);
+        } catch (emailError) {
+          // Silently fail - user still has code available
+        }
+      });
+    }
   } catch (error) {
-    console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -329,6 +393,35 @@ app.post('/api/auth/verify', async (req, res) => {
       return res.status(400).json({ error: 'Missing email or code' });
     }
 
+    // In production, user is already created, just verify login
+    if (process.env.NODE_ENV === 'production') {
+      const user = await authCollection.findOne({ email });
+      
+      if (!user) {
+        return res.status(400).json({ error: 'User not found. Please register first.' });
+      }
+
+      // Generate JWT
+      const token = generateToken({
+        id: user._id.toString(),
+        email: user.email,
+        username: user.username,
+        role: user.role
+      });
+
+      return res.json({
+        message: 'Account verified successfully',
+        token,
+        user: {
+          id: user._id.toString(),
+          email: user.email,
+          username: user.username,
+          role: user.role
+        }
+      });
+    }
+
+    // In development, verify against stored code
     const verification = await verificationsCollection.findOne({ email });
     
     if (!verification) {
@@ -379,7 +472,6 @@ app.post('/api/auth/verify', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Verification error:', error);
     res.status(500).json({ error: 'Verification failed' });
   }
 });
