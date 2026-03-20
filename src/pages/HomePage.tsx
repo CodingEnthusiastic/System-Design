@@ -81,47 +81,52 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="space-y-20 pb-16">
-      {/* Hero */}
+    <>
+      {/* Full-width Hero Section */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative py-24 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 neu-stripes"
+        className="relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] py-24 px-4 sm:px-6 lg:px-8 neu-stripes"
       >
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-block mb-8">
-            <span className="neu-badge-blue px-6 py-3 text-base font-semibold">
-              Welcome back, {user?.username} 👋
-            </span>
-          </div>
-          <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-8 leading-tight">
-            MASTER<br />
-            <span className="text-primary">SYSTEM</span>{' '}
-            <span className="relative inline-block">
-              DESIGN
-              <div className="absolute -bottom-2 left-0 right-0 h-5 bg-primary/30 -z-10" />
-            </span>
-          </h1>
-          <p className="text-2xl text-muted-foreground max-w-2xl mx-auto mb-10 font-mono">
-            From fundamentals to advanced HLD/LLD — learn to design systems that scale to millions.
-          </p>
-          <div className="flex flex-wrap gap-6 justify-center">
-            <Link
-              to="/learn"
-              className="neu-btn-blue px-10 py-5 text-xl inline-flex items-center gap-3"
-            >
-              Start Learning <ArrowRight className="w-6 h-6" />
-            </Link>
-            <Link
-              to="/quizzes"
-              className="neu-btn px-10 py-5 text-xl bg-secondary text-foreground inline-flex items-center gap-3"
-            >
-              Take a Quiz <Brain className="w-6 h-6" />
-            </Link>
+        <div className="max-w-7xl mx-auto">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-block mb-8">
+              <span className="neu-badge-blue px-6 py-3 text-base font-semibold">
+                Welcome back, {user?.username} 👋
+              </span>
+            </div>
+            <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-8 leading-tight">
+              MASTER<br />
+              <span className="text-primary">SYSTEM</span>{' '}
+              <span className="relative inline-block">
+                DESIGN
+                <div className="absolute -bottom-2 left-0 right-0 h-5 bg-primary/30 -z-10" />
+              </span>
+            </h1>
+            <p className="text-2xl text-muted-foreground max-w-2xl mx-auto mb-10 font-mono">
+              From fundamentals to advanced HLD/LLD — learn to design systems that scale to millions.
+            </p>
+            <div className="flex flex-wrap gap-6 justify-center">
+              <Link
+                to="/learn"
+                className="neu-btn-blue px-10 py-5 text-xl inline-flex items-center gap-3"
+              >
+                Start Learning <ArrowRight className="w-6 h-6" />
+              </Link>
+              <Link
+                to="/quizzes"
+                className="neu-btn px-10 py-5 text-xl bg-secondary text-foreground inline-flex items-center gap-3"
+              >
+                Take a Quiz <Brain className="w-6 h-6" />
+              </Link>
+            </div>
           </div>
         </div>
       </motion.section>
+
+      {/* Main Content Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20 pb-16">
 
       {/* Stats - Constrained Width */}
       <motion.section
@@ -184,6 +189,7 @@ export default function HomePage() {
         </div>
       </section>
       <PageLoader isLoading={loading} message="Loading..." />
-    </div>
+      </div>
+    </>
   );
 }
