@@ -57,8 +57,7 @@ export default function ArticlesPage() {
   const [loadingImages, setLoadingImages] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);  const [statusFilter, setStatusFilter] = useState<'all' | 'read' | 'liked' | 'none'>('all');  const [dataLoaded, setDataLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
   // User interactions tracking
@@ -388,11 +387,63 @@ export default function ArticlesPage() {
           ))}
         </div>
 
+        {/* Status Filter */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-4 py-2 text-sm font-bold tracking-wider border-2 cursor-pointer transition-all ${
+              statusFilter === 'all' 
+                ? 'bg-primary text-primary-foreground border-primary' 
+                : 'bg-secondary text-foreground border-foreground hover:bg-primary/20'
+            }`}
+            style={{ boxShadow: '2px 2px 0px #000' }}
+          >
+            All Articles
+          </button>
+          <button
+            onClick={() => setStatusFilter('read')}
+            className={`px-4 py-2 text-sm font-bold tracking-wider border-2 cursor-pointer transition-all flex items-center gap-2 ${
+              statusFilter === 'read' 
+                ? 'bg-accent-cyan text-background border-accent-cyan' 
+                : 'bg-secondary text-foreground border-foreground hover:bg-accent-cyan/20'
+            }`}
+            style={{ boxShadow: '2px 2px 0px #000' }}
+          >
+            <CheckCircle className="w-4 h-4" /> Read
+          </button>
+          <button
+            onClick={() => setStatusFilter('liked')}
+            className={`px-4 py-2 text-sm font-bold tracking-wider border-2 cursor-pointer transition-all flex items-center gap-2 ${
+              statusFilter === 'liked' 
+                ? 'bg-red-500 text-white border-red-500' 
+                : 'bg-secondary text-foreground border-foreground hover:bg-red-500/20'
+            }`}
+            style={{ boxShadow: '2px 2px 0px #000' }}
+          >
+            <Heart className="w-4 h-4" /> Liked
+          </button>
+          <button
+            onClick={() => setStatusFilter('none')}
+            className={`px-4 py-2 text-sm font-bold tracking-wider border-2 cursor-pointer transition-all ${
+              statusFilter === 'none' 
+                ? 'bg-accent-yellow text-background border-accent-yellow' 
+                : 'bg-secondary text-foreground border-foreground hover:bg-accent-yellow/20'
+            }`}
+            style={{ boxShadow: '2px 2px 0px #000' }}
+          >
+            Not Interacted
+          </button>
+        </div>
+
         {/* Results count */}
         <p className="text-sm text-muted-foreground font-mono">
           Showing {articles.filter(a => 
             (searchQuery === '' || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.author.toLowerCase().includes(searchQuery.toLowerCase())) &&
-            (selectedTag === null || a.tags.includes(selectedTag))
+            (selectedTag === null || a.tags.includes(selectedTag)) &&
+            (statusFilter === 'all' || 
+              (statusFilter === 'read' && userInteractions[a.id]?.isRead) ||
+              (statusFilter === 'liked' && userInteractions[a.id]?.isLiked) ||
+              (statusFilter === 'none' && !userInteractions[a.id]?.isRead && !userInteractions[a.id]?.isLiked))
           ).length} articles
         </p>
       </div>
@@ -403,7 +454,11 @@ export default function ArticlesPage() {
           {articles
             .filter(a => 
               (searchQuery === '' || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.author.toLowerCase().includes(searchQuery.toLowerCase())) &&
-              (selectedTag === null || a.tags.includes(selectedTag))
+              (selectedTag === null || a.tags.includes(selectedTag)) &&
+              (statusFilter === 'all' || 
+                (statusFilter === 'read' && userInteractions[a.id]?.isRead) ||
+                (statusFilter === 'liked' && userInteractions[a.id]?.isLiked) ||
+                (statusFilter === 'none' && !userInteractions[a.id]?.isRead && !userInteractions[a.id]?.isLiked))
             )
             .map((article, i) => (
             <motion.div
@@ -466,7 +521,11 @@ export default function ArticlesPage() {
             {articles
               .filter(a => 
                 (searchQuery === '' || a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.author.toLowerCase().includes(searchQuery.toLowerCase())) &&
-                (selectedTag === null || a.tags.includes(selectedTag))
+                (selectedTag === null || a.tags.includes(selectedTag)) &&
+                (statusFilter === 'all' || 
+                  (statusFilter === 'read' && userInteractions[a.id]?.isRead) ||
+                  (statusFilter === 'liked' && userInteractions[a.id]?.isLiked) ||
+                  (statusFilter === 'none' && !userInteractions[a.id]?.isRead && !userInteractions[a.id]?.isLiked))
               )
               .map((article) => (
               <button

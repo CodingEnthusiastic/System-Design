@@ -4,11 +4,15 @@ import { courses as initialCourses, Course, Lesson } from '@/data/mockData';
 import { Play, Clock, ChevronRight, ArrowLeft, CheckCircle, BookOpen, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getImageUrl } from '@/lib/utils';
+import { coursesAPI } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import PageLoader from '@/components/PageLoader';
+import { toast } from 'sonner';
 
 export default function LearnPage() {
   const { courseId, lessonId } = useParams<{ courseId?: string; lessonId?: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
@@ -17,6 +21,26 @@ export default function LearnPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch completed lessons from DB on mount
+  useEffect(() => {
+    const loadCompletedLessons = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const response = await coursesAPI.getCompletedLessons();
+        const completed = new Set(response.data.completedLessons || []);
+        setCompletedLessons(completed);
+      } catch (error) {
+        console.log('Could not load course progress from DB, using local state');
+      }
+    };
+
+    if (dataLoaded && user?.id) {
+      loadCompletedLessons();
+    }
+  }, [dataLoaded, user?.id]);
 
   // Fetch courses from API
   useEffect(() => {
@@ -91,15 +115,38 @@ export default function LearnPage() {
   const categories = ['All', 'Fundamentals', 'HLD', 'LLD'];
   const filtered = filter === 'All' ? courses : courses.filter((c) => c.category === filter);
 
-  const toggleComplete = (lessonId: string) => {
+  const toggleComplete = async (lessonId: string, courseId: string, isCurrentlyComplete: boolean) => {
+    const newCompletionState = !isCurrentlyComplete;
+    
+    // Optimistically update UI
     setCompletedLessons((prev) => {
       const next = new Set(prev);
-      next.has(lessonId) ? next.delete(lessonId) : next.add(lessonId);
+      newCompletionState ? next.add(lessonId) : next.delete(lessonId);
       return next;
     });
+
+    // Sync with DB
+    if (user?.id) {
+      setIsSaving(true);
+      try {
+        await coursesAPI.markLessonComplete(courseId, lessonId, newCompletionState);
+        toast.success(newCompletionState ? 'Lesson marked complete!' : 'Marked as incomplete');
+      } catch (error) {
+        console.error('Failed to save progress:', error);
+        toast.error('Failed to save progress');
+        // Revert on failure
+        setCompletedLessons((prev) => {
+          const next = new Set(prev);
+          isCurrentlyComplete ? next.add(lessonId) : next.delete(lessonId);
+          return next;
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    }
   };
 
-  // Course detail + video player view
+  // Course detail + video player view with improved layout
   if (selectedCourse) {
     const currentLesson = activeLesson || selectedCourse.lessons[0];
     const progress = selectedCourse.lessons.filter((l) => completedLessons.has(l.id)).length;
@@ -114,10 +161,11 @@ export default function LearnPage() {
           <ArrowLeft className="w-4 h-4" /> Back to Courses
         </button>
 
+        {/* Main Layout: Video on Left (2/3) + Scrollable Lessons on Right (1/3) */}
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Video Player */}
+          {/* Video Player & Info - Left Side */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="neu-card-blue overflow-hidden">
+            <div className="neu-card-blue overflow-hidden sticky top-6">
               <div className="aspect-video bg-black">
                 <iframe
                   src={`https://www.youtube.com/embed/${currentLesson.youtubeId}`}
@@ -135,8 +183,9 @@ export default function LearnPage() {
                     <Clock className="w-4 h-4" /> {currentLesson.duration}
                   </span>
                   <button
-                    onClick={() => toggleComplete(currentLesson.id)}
-                    className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider border-3 cursor-pointer transition-all ${
+                    onClick={() => toggleComplete(currentLesson.id, selectedCourse.id, completedLessons.has(currentLesson.id))}
+                    disabled={isSaving}
+                    className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider border-3 cursor-pointer transition-all disabled:opacity-50 ${
                       completedLessons.has(currentLesson.id)
                         ? 'bg-accent-lime text-background border-foreground'
                         : 'bg-secondary text-foreground border-foreground'
@@ -151,8 +200,8 @@ export default function LearnPage() {
             </div>
           </div>
 
-          {/* Lesson Sidebar */}
-          <div className="space-y-4">
+          {/* Lessons Sidebar - Right Side with Scrollable List */}
+          <div className="lg:col-span-1 space-y-4 flex flex-col h-fit lg:sticky lg:top-6">
             <div className="neu-card p-5">
               <h3 className="font-bold text-lg mb-1">{selectedCourse.title}</h3>
               <p className="text-sm text-muted-foreground mb-3">{selectedCourse.description}</p>
@@ -169,13 +218,13 @@ export default function LearnPage() {
               </div>
             </div>
 
-            <div className="neu-card divide-y-2 divide-border">
+            <div className="neu-card divide-y-2 divide-border overflow-y-auto max-h-96">
               {selectedCourse.lessons.map((lesson, i) => (
                 <button
                   key={lesson.id}
                   onClick={() => navigate(`/learn/${selectedCourse.id}/${lesson.id}`)}
-                  className={`w-full text-left p-4 flex items-start gap-3 transition-all cursor-pointer ${
-                    currentLesson.id === lesson.id ? 'bg-primary/20' : 'hover:bg-secondary'
+                  className={`w-full text-left p-4 flex items-start gap-3 transition-all cursor-pointer hover:bg-secondary/50 ${
+                    currentLesson.id === lesson.id ? 'bg-primary/20' : ''
                   }`}
                 >
                   <div className={`w-8 h-8 shrink-0 flex items-center justify-center border-2 font-bold text-sm ${

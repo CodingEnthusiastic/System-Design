@@ -74,6 +74,16 @@ export const coursesAPI = {
   create: (data: any) => api.post('/api/courses', data),
   update: (id: string, data: any) => api.put(`/api/courses/${id}`, data),
   delete: (id: string) => api.delete(`/api/courses/${id}`),
+  
+  // Course progress tracking
+  markLessonComplete: (courseId: string, lessonId: string, isComplete: boolean) =>
+    api.post(`/api/courses/${courseId}/lessons/${lessonId}/complete`, { isComplete }),
+  getUserProgress: (courseId: string) =>
+    api.get(`/api/courses/${courseId}/progress`),
+  getCompletedLessons: () =>
+    api.get('/api/user/completed-lessons'),
+  batchUpdateProgress: (progress: Array<{ courseId: string; lessonId: string; isComplete: boolean }>) =>
+    api.post('/api/user/course-progress/batch', { progress }),
 };
 
 // Quizzes APIs
