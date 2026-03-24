@@ -1376,6 +1376,81 @@ app.get('/api/quizzes/:quizId/attempt', middleware.auth, async (req, res) => {
   }
 });
 
+// Record security violation (tab switch, inspect, etc.) - saves 0 score immediately
+app.post('/api/quizzes/:quizId/violation', middleware.auth, async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const { reason, answers = {} } = req.body;
+    const userIdFromToken = req.user._id || req.user.id;
+    const userObjectId = toObjectId(userIdFromToken);
+
+    if (!userObjectId) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Check if user has already submitted for this quiz
+    const existingAttempt = await leaderboardCollection.findOne({
+      quizId,
+      userId: userObjectId
+    });
+
+    if (existingAttempt) {
+      // Already submitted or already has a violation recorded - don't record again
+      return res.status(400).json({ error: 'Quiz attempt already recorded' });
+    }
+
+    // Record security violation with 0 score
+    const violationEntry = {
+      quizId,
+      userId: userObjectId,
+      username: req.user.username || 'Anonymous',
+      email: req.user.email,
+      points: 0, // Security violation = 0 points
+      timeSpent: 0,
+      answers: answers || {},
+      violationReason: reason, // e.g., 'tab-switch', 'inspect', 'copy'
+      completedAt: new Date(),
+      isViolation: true
+    };
+
+    console.log('Recording security violation:', {
+      quizId,
+      userId: userObjectId.toString(),
+      reason,
+      username: violationEntry.username
+    });
+
+    // Insert violation entry
+    await leaderboardCollection.insertOne(violationEntry);
+
+    // Update user points
+    const userIdStr = userObjectId.toString();
+    const totalPoints = await leaderboardCollection.aggregate([
+      { 
+        $match: { 
+          $or: [
+            { userId: userObjectId },
+            { userId: userIdStr }
+          ]
+        } 
+      },
+      { $group: { _id: null, total: { $sum: '$points' } } }
+    ]).toArray();
+
+    const userPoints = totalPoints.length > 0 ? totalPoints[0].total : 0;
+
+    await authCollection.updateOne(
+      { _id: userObjectId },
+      { $set: { points: userPoints } }
+    );
+
+    res.json({ message: 'Security violation recorded', points: 0 });
+  } catch (error) {
+    console.error('Record violation error:', error);
+    res.status(500).json({ error: 'Failed to record violation' });
+  }
+});
+
 // COURSE TRACKING ROUTES
 // Track course progress
 app.post('/api/courses/:courseId/track', middleware.auth, async (req, res) => {

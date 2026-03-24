@@ -38,11 +38,13 @@ export default function QuizzesPage() {
   const [userAnswers, setUserAnswers] = useState<Record<string, number>>({});
   const [attemptTimeSpent, setAttemptTimeSpent] = useState(0);
   const [attemptCompletedAt, setAttemptCompletedAt] = useState('');
+  const [checkingAttempt, setCheckingAttempt] = useState(false);
 
   // Security state
   const [tabViolation, setTabViolation] = useState(false);
   const [quizAborted, setQuizAborted] = useState(false);
   const [violationReason, setViolationReason] = useState<'tab-switch' | 'inspect' | 'copy'>('tab-switch');
+  const [violationRecorded, setViolationRecorded] = useState(false);
 
   // Handle URL-based quiz selection
   useEffect(() => {
@@ -104,11 +106,13 @@ export default function QuizzesPage() {
       setUserAnswers({});
       setAttemptTimeSpent(0);
       setAttemptCompletedAt('');
+      setCheckingAttempt(false);
       return;
     }
 
     const checkUserAttempt = async () => {
       try {
+        setCheckingAttempt(true);
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
         const token = localStorage.getItem('authToken');
         
@@ -160,6 +164,8 @@ export default function QuizzesPage() {
         setUserAnswers({});
         setAttemptTimeSpent(0);
         setAttemptCompletedAt('');
+      } finally {
+        setCheckingAttempt(false);
       }
     };
 
@@ -173,6 +179,35 @@ export default function QuizzesPage() {
     }
   }, [quizActive, showResults]);
 
+  // Auto-submit quiz when showing results
+  useEffect(() => {
+    if (quizActive && showResults && selectedQuiz && !showLeaderboard && !submitting) {
+      // Check if all questions are answered
+      const allAnswered = selectedQuiz.questions.every(q => answers[q.id] !== undefined);
+      if (allAnswered) {
+        submitQuizResult();
+      }
+    }
+  }, [quizActive, showResults, selectedQuiz, answers, showLeaderboard, submitting]);
+
+  // SECURITY: Handle violations and record them
+  const recordSecurityViolation = async (reason: 'tab-switch' | 'inspect' | 'copy') => {
+    if (!selectedQuiz || violationRecorded) return;
+    
+    try {
+      setViolationRecorded(true);
+      console.log('Recording security violation:', reason);
+      
+      // Record violation with partial answers
+      await quizzesAPI.recordViolation(selectedQuiz.id, reason, answers);
+      
+      console.log('Security violation recorded successfully');
+    } catch (error: any) {
+      console.error('Failed to record security violation:', error);
+      // Even if recording fails, the user is disqualified
+    }
+  };
+
   // SECURITY: TAB DETECTION, COPY BLOCKING, INSPECT DETECTION
   useEffect(() => {
     if (!quizActive || showResults) return;
@@ -183,6 +218,7 @@ export default function QuizzesPage() {
         setTabViolation(true);
         setQuizAborted(true);
         setQuizActive(false);
+        recordSecurityViolation('tab-switch');
       }
     };
 
@@ -200,6 +236,7 @@ export default function QuizzesPage() {
         setTabViolation(true);
         setQuizAborted(true);
         setQuizActive(false);
+        recordSecurityViolation('inspect');
         return false;
       }
 
@@ -210,6 +247,7 @@ export default function QuizzesPage() {
         setTabViolation(true);
         setQuizAborted(true);
         setQuizActive(false);
+        recordSecurityViolation('inspect');
         return false;
       }
 
@@ -220,6 +258,7 @@ export default function QuizzesPage() {
         setTabViolation(true);
         setQuizAborted(true);
         setQuizActive(false);
+        recordSecurityViolation('inspect');
         return false;
       }
 
@@ -230,6 +269,7 @@ export default function QuizzesPage() {
         setTabViolation(true);
         setQuizAborted(true);
         setQuizActive(false);
+        recordSecurityViolation('inspect');
         return false;
       }
     };
@@ -240,6 +280,7 @@ export default function QuizzesPage() {
         setTabViolation(true);
         setQuizAborted(true);
         setQuizActive(false);
+        recordSecurityViolation('tab-switch');
       }
     };
 
@@ -252,7 +293,7 @@ export default function QuizzesPage() {
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('blur', handleBlur);
     };
-  }, [quizActive, showResults]);
+  }, [quizActive, showResults, selectedQuiz, answers, violationRecorded]);
 
   // Handlers
   const startQuiz = async () => {
@@ -337,6 +378,7 @@ export default function QuizzesPage() {
     setTabViolation(false);
     setQuizAborted(false);
     setViolationReason('tab-switch');
+    setViolationRecorded(false);
     setHasAttempted(false);
     setUserScore(0);
     setUserAnswers({});
@@ -354,6 +396,7 @@ export default function QuizzesPage() {
     setTabViolation(false);
     setQuizAborted(false);
     setViolationReason('tab-switch');
+    setViolationRecorded(false);
     setHasAttempted(false);
     setUserScore(0);
     setUserAnswers({});
@@ -378,7 +421,7 @@ export default function QuizzesPage() {
   }
 
   // Show review screen if user has already attempted this quiz
-  if (selectedQuiz && showPreQuizScreen && !quizActive && hasAttempted) {
+  if (selectedQuiz && showPreQuizScreen && !quizActive && hasAttempted && !checkingAttempt) {
     return (
       <QuizReviewScreen
         quiz={selectedQuiz}
@@ -391,7 +434,12 @@ export default function QuizzesPage() {
     );
   }
 
-  if (selectedQuiz && showPreQuizScreen && !quizActive) {
+  // Show loader while verifying attempt status
+  if (selectedQuiz && showPreQuizScreen && checkingAttempt) {
+    return <PageLoader isLoading={true} message="Verifying your attempt status..." />;
+  }
+
+  if (selectedQuiz && showPreQuizScreen && !quizActive && !checkingAttempt) {
     return (
       <PreQuizScreen
         quiz={selectedQuiz}
@@ -440,7 +488,7 @@ export default function QuizzesPage() {
         quizzes={quizzes}
         onSelectQuiz={handleSelectQuiz}
       />
-      <PageLoader isLoading={loading || submitting} message={submitting ? 'Submitting quiz...' : 'Loading quizzes...'} />
+      <PageLoader isLoading={loading} message="Loading quizzes..." />
     </>
   );
 }

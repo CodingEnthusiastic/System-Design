@@ -1,18 +1,72 @@
-import { Brain, Search, Trophy } from 'lucide-react';
+import { Brain, Search, Trophy, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Quiz } from '@/data/mockData';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface QuizzesListScreenProps {
   quizzes: Quiz[];
   onSelectQuiz: (quiz: Quiz) => void;
 }
 
+interface QuizAttemptStatus {
+  [quizId: string]: boolean;
+}
+
 export default function QuizzesListScreen({ quizzes, onSelectQuiz }: QuizzesListScreenProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [attemptedQuizzes, setAttemptedQuizzes] = useState<QuizAttemptStatus>({});
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
+
+  // Check which quizzes have been attempted
+  useEffect(() => {
+    const checkAttemptedQuizzes = async () => {
+      try {
+        setLoadingAttempts(true);
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const token = localStorage.getItem('authToken');
+        
+        if (!token) {
+          setAttemptedQuizzes({});
+          return;
+        }
+
+        const attempts: QuizAttemptStatus = {};
+        
+        // Check each quiz in parallel
+        const checks = quizzes.map(async (quiz) => {
+          try {
+            const response = await fetch(`${API_URL}/api/quizzes/${quiz.id}/attempt`, {
+              headers: { 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (response.ok) {
+              const attempt = await response.json();
+              attempts[quiz.id] = attempt && attempt.points !== undefined;
+            }
+          } catch (_error) {
+            // Silently ignore errors
+          }
+        });
+
+        await Promise.all(checks);
+        setAttemptedQuizzes(attempts);
+      } catch (error) {
+        console.error('Failed to check attempted quizzes:', error);
+      } finally {
+        setLoadingAttempts(false);
+      }
+    };
+
+    if (quizzes.length > 0) {
+      checkAttemptedQuizzes();
+    }
+  }, [quizzes]);
   return (
     <div className="space-y-8">
       <div>
@@ -108,10 +162,20 @@ export default function QuizzesListScreen({ quizzes, onSelectQuiz }: QuizzesList
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onSelectQuiz(quiz)}
-                  className="w-full neu-btn-blue py-2 text-sm font-bold border-2 cursor-pointer text-center"
-                  style={{ boxShadow: '2px 2px 0px #1e3a5f' }}
+                  className={`w-full py-2 text-sm font-bold border-2 cursor-pointer text-center ${
+                    attemptedQuizzes[quiz.id] 
+                      ? 'neu-btn bg-accent-lime/20 border-accent-lime text-accent-lime' 
+                      : 'neu-btn-blue'
+                  }`}
+                  style={{ boxShadow: attemptedQuizzes[quiz.id] ? '2px 2px 0px #00FF00' : '2px 2px 0px #1e3a5f' }}
                 >
-                  Start Quiz →
+                  {attemptedQuizzes[quiz.id] ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 inline mr-1" /> View Result →
+                    </>
+                  ) : (
+                    <>Start Quiz →</>
+                  )}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }}

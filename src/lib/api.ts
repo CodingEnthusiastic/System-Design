@@ -101,6 +101,8 @@ export const quizzesAPI = {
     api.get(`/api/quizzes/${quizId}/check-attempt`),
   getAttempt: (quizId: string) =>
     api.get(`/api/quizzes/${quizId}/attempt`),
+  recordViolation: (quizId: string, reason: 'tab-switch' | 'inspect' | 'copy', answers?: Record<string, number>) =>
+    api.post(`/api/quizzes/${quizId}/violation`, { reason, answers }),
 };
 
 // Users APIs
