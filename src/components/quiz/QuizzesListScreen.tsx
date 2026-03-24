@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Quiz } from '@/data/mockData';
 import { useState, useEffect } from 'react';
+import PageLoader from '@/components/PageLoader';
 
 interface QuizzesListScreenProps {
   quizzes: Quiz[];
@@ -67,17 +68,19 @@ export default function QuizzesListScreen({ quizzes, onSelectQuiz }: QuizzesList
       checkAttemptedQuizzes();
     }
   }, [quizzes]);
+  
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight mb-2">
-          <span className="text-primary">»</span> QUIZZES
-        </h1>
-        <p className="text-muted-foreground font-mono text-sm">TEST YOUR SYSTEM DESIGN KNOWLEDGE</p>
-      </div>
+    <>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">
+            <span className="text-primary">»</span> QUIZZES
+          </h1>
+          <p className="text-muted-foreground font-mono text-sm">TEST YOUR SYSTEM DESIGN KNOWLEDGE</p>
+        </div>
 
-      {/* Search and Filter */}
-      <div className="space-y-4">
+        {/* Search and Filter */}
+        <div className="space-y-4">
         <div className="neu-input w-full px-4 py-3 text-foreground border-2 border-foreground flex items-center gap-2" style={{ boxShadow: '2px 2px 0px #000' }}>
           <Search className="w-4 h-4 text-muted-foreground" />
           <input
@@ -194,6 +197,8 @@ export default function QuizzesListScreen({ quizzes, onSelectQuiz }: QuizzesList
           </motion.div>
         ))}
       </div>
-    </div>
+      </div>
+      <PageLoader isLoading={loadingAttempts} message="Checking quiz attempts..." />
+    </>
   );
 }
