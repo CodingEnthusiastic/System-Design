@@ -525,7 +525,7 @@ export default function AdminPage() {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => navigate(`/admin/${tab.id}`)}
             className={`px-5 py-3 font-bold text-sm uppercase tracking-wider border-3 inline-flex items-center gap-2 cursor-pointer transition-all ${
               activeTab === tab.id
                 ? 'bg-primary text-primary-foreground border-foreground'
